@@ -9,11 +9,12 @@ const UNISWAP_BATCH_SIZE = 1000
 const blacklistTokens = ['0xD75EA151a61d06868E31F8988D28DFE5E9df57B4']
 
 export class UniswappyV2EthPair extends EthMarket {
+
   static uniswapInterface = new Contract(WETH_ADDRESS, UNISWAP_PAIR_ABI);
   private _tokenBalances: TokenBalances
 
-  constructor(marketAddress: string, tokens: Array<string>) {
-    super(marketAddress, tokens);
+  constructor(marketAddress: string, tokens: Array<string>, protocol: string) {
+    super(marketAddress, tokens, protocol);
     this._tokenBalances = _.zipObject(tokens,[BigNumber.from(0), BigNumber.from(0)])
   }
 
@@ -25,15 +26,12 @@ export class UniswappyV2EthPair extends EthMarket {
     throw new Error("No preparation for uniswappy")
   }
 
-  protocol(): string {
-    return "UNISWAP";
-  }
 
   static async getUniswappyMarkets(provider: providers.JsonRpcProvider, factoryAddress: string): Promise<Array<UniswappyV2EthPair>> {
     const uniswapQuery = new Contract(CONTRACT_ADDRESS, UNISWAP_QUERY_ABI, provider);
 
     const marketPairs = new Array<UniswappyV2EthPair>()
-    for (let i = 0; i < 5 * UNISWAP_BATCH_SIZE; i += UNISWAP_BATCH_SIZE) {
+    for (let i = 0; i < 45 * UNISWAP_BATCH_SIZE; i += UNISWAP_BATCH_SIZE) {
       const pairs: Array<Array<string>> = (await uniswapQuery.functions.getPairsByIndexRange(factoryAddress, i, i + UNISWAP_BATCH_SIZE))[0];
       for (let i = 0; i < pairs.length; i++) {
         const pair = pairs[i];
@@ -48,7 +46,7 @@ export class UniswappyV2EthPair extends EthMarket {
           continue;
         }
         if (!blacklistTokens.includes(tokenAddress)) {
-          const uniswappyV2EthPair = new UniswappyV2EthPair(marketAddress, [pair[0], pair[1]]);
+          const uniswappyV2EthPair = new UniswappyV2EthPair(marketAddress, [pair[0], pair[1]], "");
           marketPairs.push(uniswappyV2EthPair);
         }
       }
@@ -115,7 +113,7 @@ export class UniswappyV2EthPair extends EthMarket {
   setReservesViaMatchingArray(tokens: Array<string>, balances: Array<BigNumber>): void {
     const tokenBalances = _.zipObject(tokens, balances)
     if (!_.isEqual(this._tokenBalances, tokenBalances)) {
-      console.log('chaning reserves for ', this.marketAddress)
+      console.log('changing reserves for ', this.marketAddress)
       this._tokenBalances = tokenBalances
     }
   }

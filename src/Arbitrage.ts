@@ -82,9 +82,9 @@ export class Arbitrage {
     const sellTokens = crossedMarket.sellToMarket.tokens
     console.log(
       `Profit: ${bigNumberToDecimal(crossedMarket.profit)} Volume: ${bigNumberToDecimal(crossedMarket.volume)}\n` +
-      `${crossedMarket.buyFromMarket.protocol()} (${crossedMarket.buyFromMarket.marketAddress})\n` +
+      `${crossedMarket.buyFromMarket.protocol} (${crossedMarket.buyFromMarket.marketAddress})\n` +
       `  ${buyTokens[0]} => ${buyTokens[1]}\n` +
-      `${crossedMarket.sellToMarket.protocol()} (${crossedMarket.sellToMarket.marketAddress})\n` +
+      `${crossedMarket.sellToMarket.protocol} (${crossedMarket.sellToMarket.marketAddress})\n` +
       `  ${sellTokens[0]} => ${sellTokens[1]}\n` +
       `\n`
     )
@@ -98,7 +98,7 @@ export class Arbitrage {
       const markets = marketsByToken[tokenAddress]
       const pricedMarkets = _.map(markets, (ethMarket: EthMarket) => {
         return {
-          uniswapPair: ethMarket,
+          ethMarket: ethMarket,
           buyTokenPrice: ethMarket.getTokensIn(tokenAddress, WETH_ADDRESS, ETHER.div(100)),
           sellTokenPrice: ethMarket.getTokensOut(WETH_ADDRESS, tokenAddress, ETHER.div(100)),
         }
@@ -108,13 +108,13 @@ export class Arbitrage {
       for (const pricedMarket of pricedMarkets) {
         _.forEach(pricedMarkets, pm => {
           if (pm.sellTokenPrice.gt(pricedMarket.buyTokenPrice)) {
-            crossedMarkets.push([pricedMarket.uniswapPair, pm.uniswapPair])
+            crossedMarkets.push([pricedMarket.ethMarket, pm.ethMarket])
           }
         })
       }
 
       const bestCrossedMarket = getBestCrossedMarket(crossedMarkets, tokenAddress);
-      if (bestCrossedMarket !== undefined && bestCrossedMarket.profit.gt(ETHER.div(500))) {
+      if (bestCrossedMarket !== undefined && bestCrossedMarket.profit.gt(ETHER.div(1000))) {
         bestCrossedMarkets.push(bestCrossedMarket)
       }
     }
@@ -130,7 +130,7 @@ export class Arbitrage {
     const inter = globalBestCrossedMarket.buyFromMarket.getTokensOut(WETH_ADDRESS, globalBestCrossedMarket.tokenAddress, globalBestCrossedMarket.volume)
     const sellCallData = await globalBestCrossedMarket.sellToMarket.sellTokens(globalBestCrossedMarket.tokenAddress, inter, this.bundleExecutorContract.address);
 
-    const targets: Array<string> = [...buyCalls.targets, globalBestCrossedMarket.buyFromMarket.marketAddress, globalBestCrossedMarket.sellToMarket.marketAddress]
+    const targets: Array<string> = [...buyCalls.targets, globalBestCrossedMarket.sellToMarket.marketAddress]
     const payloads: Array<string>  = [...buyCalls.data, sellCallData]
     console.log({targets, payloads})
     const transaction = await this.bundleExecutorContract.populateTransaction.uniswapWeth(globalBestCrossedMarket.volume, globalBestCrossedMarket.profit.sub(1), targets, payloads, {

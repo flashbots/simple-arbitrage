@@ -24,15 +24,20 @@ export abstract class EthMarket {
     return this._marketAddress;
   }
 
-  protected readonly _tokens: Array<string>;
-  protected readonly _marketAddress: string;
-
-  constructor(marketAddress: string, tokens: Array<string>) {
-    this._marketAddress = marketAddress;
-    this._tokens = tokens
+  get protocol(): string {
+    return this._protocol;
   }
 
-  abstract protocol(): string
+  protected readonly _tokens: Array<string>;
+  protected readonly _marketAddress: string;
+  protected readonly _protocol: string;
+
+  constructor(marketAddress: string, tokens: Array<string>, protocol: string) {
+    this._marketAddress = marketAddress;
+    this._tokens = tokens
+    this._protocol = protocol;
+  }
+
 
   abstract getTokensOut(tokenIn: string, tokenOut: string, amountIn: BigNumber): BigNumber;
 

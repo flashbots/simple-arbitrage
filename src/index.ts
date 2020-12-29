@@ -42,8 +42,7 @@ async function main() {
       return
     }
     bestCrossedMarkets.forEach(Arbitrage.printCrossedMarket);
-    await arbitrage.takeCrossedMarkets(bestCrossedMarkets, blockNumber);
-    healthcheck()
+    arbitrage.takeCrossedMarkets(bestCrossedMarkets, blockNumber).then(healthcheck).catch(console.error)
   })
 }
 

@@ -138,6 +138,7 @@ export class Arbitrage {
       gasLimit: BigNumber.from(1000000),
     });
     console.log(transaction)
+
     const bundlePromises = _.map([blockNumber + 1, blockNumber + 2], targetBlockNumber =>
       this.flashbotsProvider.sendBundle(
         [
@@ -149,6 +150,6 @@ export class Arbitrage {
         targetBlockNumber
       )
     )
-    await Promise.all(bundlePromises).catch(e => console.error(e));
+    await Promise.all(bundlePromises)
   }
 }

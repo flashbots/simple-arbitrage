@@ -4,10 +4,13 @@ import { BUNDLE_EXECUTOR_ABI } from "./abi";
 import { UniswappyV2EthPair } from "./UniswappyV2EthPair";
 import { BUNDLE_EXECUTOR_ADDRESS, FACTORY_ADDRESSES } from "./addresses";
 import { Arbitrage } from "./Arbitrage";
+import { get } from "https"
 
 const ETHEREUM_URL = process.env.ETHEREUM_URL || "http://127.0.0.1:8545"
 const FLASHBOTS_URL = process.env.FLASHBOTS_URL || ""
 const PRIVATE_KEY = process.env.PRIVATE_KEY || ""
+
+const HEALTHCHECK_URL = process.env.HEALTHCHECK_URL || ""
 
 const NETWORK_INFO = {chainId: 1, ensAddress: '', name: 'mainnet'}
 const provider = new providers.JsonRpcProvider(ETHEREUM_URL);
@@ -15,6 +18,13 @@ const provider = new providers.JsonRpcProvider(ETHEREUM_URL);
 export function bigNumberToDecimal(value: BigNumber, base = 18): number {
   const divisor = BigNumber.from(10).pow(base)
   return value.mul(10000).div(divisor).toNumber() / 10000
+}
+
+function healthcheck() {
+  if (HEALTHCHECK_URL === "") {
+    return
+  }
+  get(HEALTHCHECK_URL).on('error', console.error);
 }
 
 async function main() {
@@ -33,6 +43,7 @@ async function main() {
     }
     bestCrossedMarkets.forEach(Arbitrage.printCrossedMarket);
     await arbitrage.takeCrossedMarkets(bestCrossedMarkets, blockNumber);
+    healthcheck()
   })
 }
 

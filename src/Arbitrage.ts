@@ -166,6 +166,9 @@ export class Arbitrage {
         )
       )
       await Promise.all(bundlePromises)
+      return
     }
+    throw new Error("No arbitrage submitted to relay")
   }
+
 }

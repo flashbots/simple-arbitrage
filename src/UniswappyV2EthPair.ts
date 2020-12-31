@@ -2,7 +2,7 @@ import * as _ from "lodash";
 import { BigNumber, Contract, providers } from "ethers";
 import { UNISWAP_PAIR_ABI, UNISWAP_QUERY_ABI } from "./abi";
 import { CONTRACT_ADDRESS, ETHER, WETH_ADDRESS } from "./addresses";
-import { CallDetails, EthMarket, Hi, TokenBalances } from "./EthMarket";
+import { CallDetails, EthMarket, MultipleCallData, TokenBalances } from "./EthMarket";
 
 const UNISWAP_BATCH_SIZE = 1000
 
@@ -143,7 +143,7 @@ export class UniswappyV2EthPair extends EthMarket {
     return numerator.div(denominator);
   }
 
-  async sellTokensToNextMarket(tokenIn: string, amountIn: BigNumber, ethMarket: EthMarket): Promise<Hi> {
+  async sellTokensToNextMarket(tokenIn: string, amountIn: BigNumber, ethMarket: EthMarket): Promise<MultipleCallData> {
     if (ethMarket.receiveDirectly(tokenIn) === true) {
       const exchangeCall = await this.sellTokens(tokenIn, amountIn, ethMarket.marketAddress)
       return {
@@ -171,7 +171,7 @@ export class UniswappyV2EthPair extends EthMarket {
       tokenOut = this.tokens[0]
       amount0Out = this.getTokensOut(tokenIn, tokenOut, amountIn)
     } else {
-      throw new Error("BADZ")
+      throw new Error("Bad token input address")
     }
     const populatedTransaction = await UniswappyV2EthPair.uniswapInterface.populateTransaction.swap(amount0Out, amount1Out, recipient, []);
     if (populatedTransaction === undefined || populatedTransaction.data === undefined) throw new Error("HI")

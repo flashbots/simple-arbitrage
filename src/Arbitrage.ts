@@ -124,32 +124,48 @@ export class Arbitrage {
 
   // TODO: take more than 1
   async takeCrossedMarkets(bestCrossedMarkets: CrossedMarketDetails[], blockNumber: number): Promise<void> {
-    const globalBestCrossedMarket = bestCrossedMarkets[0]
-     console.log("Send this much WETH", globalBestCrossedMarket.volume.toString(), "get this much profit", globalBestCrossedMarket.profit.toString())
-    const buyCalls = await globalBestCrossedMarket.buyFromMarket.sellTokensToNextMarket(WETH_ADDRESS, globalBestCrossedMarket.volume, globalBestCrossedMarket.sellToMarket);
-    const inter = globalBestCrossedMarket.buyFromMarket.getTokensOut(WETH_ADDRESS, globalBestCrossedMarket.tokenAddress, globalBestCrossedMarket.volume)
-    const sellCallData = await globalBestCrossedMarket.sellToMarket.sellTokens(globalBestCrossedMarket.tokenAddress, inter, this.bundleExecutorContract.address);
+    for (const bestCrossedMarket of bestCrossedMarkets) {
 
-    const targets: Array<string> = [...buyCalls.targets, globalBestCrossedMarket.sellToMarket.marketAddress]
-    const payloads: Array<string>  = [...buyCalls.data, sellCallData]
-    console.log({targets, payloads})
-    const transaction = await this.bundleExecutorContract.populateTransaction.uniswapWeth(globalBestCrossedMarket.volume, globalBestCrossedMarket.profit.sub(1), targets, payloads, {
-      gasPrice: BigNumber.from(0),
-      gasLimit: BigNumber.from(1000000),
-    });
-    console.log(transaction)
+      console.log("Send this much WETH", bestCrossedMarket.volume.toString(), "get this much profit", bestCrossedMarket.profit.toString())
+      const buyCalls = await bestCrossedMarket.buyFromMarket.sellTokensToNextMarket(WETH_ADDRESS, bestCrossedMarket.volume, bestCrossedMarket.sellToMarket);
+      const inter = bestCrossedMarket.buyFromMarket.getTokensOut(WETH_ADDRESS, bestCrossedMarket.tokenAddress, bestCrossedMarket.volume)
+      const sellCallData = await bestCrossedMarket.sellToMarket.sellTokens(bestCrossedMarket.tokenAddress, inter, this.bundleExecutorContract.address);
 
-    const bundlePromises = _.map([blockNumber + 1, blockNumber + 2], targetBlockNumber =>
-      this.flashbotsProvider.sendBundle(
-        [
+      const targets: Array<string> = [...buyCalls.targets, bestCrossedMarket.sellToMarket.marketAddress]
+      const payloads: Array<string> = [...buyCalls.data, sellCallData]
+      console.log({targets, payloads})
+      const transaction = await this.bundleExecutorContract.populateTransaction.uniswapWeth(bestCrossedMarket.volume, bestCrossedMarket.profit.sub(1), targets, payloads, {
+        gasPrice: BigNumber.from(0),
+        gasLimit: BigNumber.from(1000000),
+      });
+
+      try {
+        const estimateGas = await this.bundleExecutorContract.provider.estimateGas(
           {
-            signer: this.executorWallet,
-            transaction: transaction
-          }
-        ],
-        targetBlockNumber
+            ...transaction,
+            from: this.executorWallet.address
+          })
+        if (estimateGas.gt(1400000)) {
+          console.log("EstimateGas succeeded, but suspiciously large: " + estimateGas.toString())
+          continue
+        }
+        transaction.gasLimit = estimateGas.mul(2)
+      } catch (e) {
+        console.warn(`Estimate gas failure for ${JSON.stringify(bestCrossedMarket)}`)
+        continue
+      }
+      const bundlePromises = _.map([blockNumber + 1, blockNumber + 2], targetBlockNumber =>
+        this.flashbotsProvider.sendBundle(
+          [
+            {
+              signer: this.executorWallet,
+              transaction: transaction
+            }
+          ],
+          targetBlockNumber
+        )
       )
-    )
-    await Promise.all(bundlePromises)
+      await Promise.all(bundlePromises)
+    }
   }
 }

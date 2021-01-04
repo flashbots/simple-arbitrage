@@ -7,14 +7,11 @@ import { Arbitrage } from "./Arbitrage";
 import { get } from "https"
 
 const ETHEREUM_RPC_URL = process.env.ETHEREUM_RPC_URL || "http://127.0.0.1:8545"
-const FLASHBOTS_RPC_URL = process.env.FLASHBOTS_RPC_URL || ""
 const PRIVATE_KEY = process.env.PRIVATE_KEY || ""
 const BUNDLE_EXECUTOR_ADDRESS = process.env.BUNDLE_EXECUTOR_ADDRESS || ""
+const FLASHBOTS_KEY_ID = process.env.FLASHBOTS_KEY_ID || "";
+const FLASHBOTS_SECRET = process.env.FLASHBOTS_SECRET || "";
 
-if (FLASHBOTS_RPC_URL === "") {
-  console.warn("Must provide FLASHBOTS_RPC_URL environment variable. Please see: INSERT_URL")
-  process.exit(1)
-}
 if (PRIVATE_KEY === "") {
   console.warn("Must provide PRIVATE_KEY environment variable")
   process.exit(1)
@@ -23,10 +20,13 @@ if (BUNDLE_EXECUTOR_ADDRESS === "") {
   console.warn("Must provide BUNDLE_EXECUTOR_ADDRESS environment variable. Please see README.md")
   process.exit(1)
 }
+if (FLASHBOTS_KEY_ID === "" || FLASHBOTS_SECRET === "") {
+  console.warn("Must provide FLASHBOTS_KEY_ID and FLASHBOTS_SECRET environment variable. Please see https://github.com/flashbots/pm/blob/main/README.md")
+  process.exit(1)
+}
 
 const HEALTHCHECK_URL = process.env.HEALTHCHECK_URL || ""
 
-const NETWORK_INFO = {chainId: 1, ensAddress: '', name: 'mainnet'}
 const provider = new providers.JsonRpcProvider(ETHEREUM_RPC_URL);
 
 function healthcheck() {
@@ -40,7 +40,7 @@ async function main() {
   const markets = await UniswappyV2EthPair.getUniswapMarketsByToken(provider, FACTORY_ADDRESSES);
   const arbitrage = new Arbitrage(
     new Wallet(PRIVATE_KEY),
-    new FlashbotsBundleProvider(provider, FLASHBOTS_RPC_URL, NETWORK_INFO),
+    await FlashbotsBundleProvider.create(provider, FLASHBOTS_KEY_ID, FLASHBOTS_SECRET),
     new Contract(BUNDLE_EXECUTOR_ADDRESS, BUNDLE_EXECUTOR_ABI, provider) )
 
   provider.on('block', async (blockNumber) => {

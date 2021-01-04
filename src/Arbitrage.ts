@@ -13,7 +13,7 @@ export interface CrossedMarketDetails {
   sellToMarket: EthMarket,
 }
 
-type MarketsByToken = { [tokenAddress: string]: Array<EthMarket> }
+export type MarketsByToken = { [tokenAddress: string]: Array<EthMarket> }
 
 // TODO: implement binary search (assuming linear/exponential global maximum profitability)
 const TEST_VOLUMES = [

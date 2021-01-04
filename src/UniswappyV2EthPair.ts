@@ -4,6 +4,7 @@ import { UNISWAP_PAIR_ABI, UNISWAP_QUERY_ABI } from "./abi";
 import { UNISWAP_LOOKUP_CONTRACT_ADDRESS, WETH_ADDRESS } from "./addresses";
 import { CallDetails, EthMarket, MultipleCallData, TokenBalances } from "./EthMarket";
 import { ETHER } from "./utils";
+import { MarketsByToken } from "./Arbitrage";
 
 // batch count limit helpful for testing, loading entire set of uniswap markets takes a long time to load
 const BATCH_COUNT_LIMIT = 100;
@@ -14,6 +15,11 @@ const UNISWAP_BATCH_SIZE = 1000
 const blacklistTokens = [
   '0xD75EA151a61d06868E31F8988D28DFE5E9df57B4'
 ]
+
+interface GroupedMarkets {
+  marketsByToken: MarketsByToken;
+  allMarketPairs: Array<UniswappyV2EthPair>;
+}
 
 export class UniswappyV2EthPair extends EthMarket {
   static uniswapInterface = new Contract(WETH_ADDRESS, UNISWAP_PAIR_ABI);
@@ -70,7 +76,7 @@ export class UniswappyV2EthPair extends EthMarket {
     return marketPairs
   }
 
-  static async getUniswapMarketsByToken(provider: providers.JsonRpcProvider, factoryAddresses: Array<string>) {
+  static async getUniswapMarketsByToken(provider: providers.JsonRpcProvider, factoryAddresses: Array<string>): Promise<GroupedMarkets> {
     const allPairs = await Promise.all(
       _.map(factoryAddresses, factoryAddress => UniswappyV2EthPair.getUniswappyMarkets(provider, factoryAddress))
     )

@@ -1,5 +1,5 @@
 import { FlashbotsBundleProvider } from "@flashbots/ethers-provider-bundle";
-import { BigNumber, Contract, providers, Wallet } from "ethers";
+import { Contract, providers, Wallet } from "ethers";
 import { BUNDLE_EXECUTOR_ABI } from "./abi";
 import { UniswappyV2EthPair } from "./UniswappyV2EthPair";
 import { FACTORY_ADDRESSES } from "./addresses";

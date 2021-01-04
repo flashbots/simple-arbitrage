@@ -15,6 +15,7 @@ abstract contract UniswapV2Factory  {
     function allPairsLength() external view virtual returns (uint);
 }
 
+// In order to quickly load up data from Uniswap-like market, this contract allows easy iteration with a single eth_call
 contract FlashBotsUniswapQuery {
     function getReservesByPairs(IUniswapV2Pair[] calldata _pairs) external view returns (uint256[3][] memory) {
         uint256[3][] memory result = new uint256[3][](_pairs.length);

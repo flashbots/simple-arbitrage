@@ -24,6 +24,8 @@ interface IWETH is IERC20 {
     function withdraw(uint) external;
 }
 
+// This contract simply calls multiple targets sequentially, ensuring WETH balance before and after
+
 contract FlashBotsMultiCall {
     address private immutable owner;
     address private immutable executor;

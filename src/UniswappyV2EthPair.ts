@@ -1,15 +1,27 @@
 import * as _ from "lodash";
 import { BigNumber, Contract, providers } from "ethers";
 import { UNISWAP_PAIR_ABI, UNISWAP_QUERY_ABI } from "./abi";
-import { CONTRACT_ADDRESS, ETHER, WETH_ADDRESS } from "./addresses";
+import { UNISWAP_LOOKUP_CONTRACT_ADDRESS, WETH_ADDRESS } from "./addresses";
 import { CallDetails, EthMarket, MultipleCallData, TokenBalances } from "./EthMarket";
+import { ETHER } from "./utils";
+import { MarketsByToken } from "./Arbitrage";
 
+// batch count limit helpful for testing, loading entire set of uniswap markets takes a long time to load
+const BATCH_COUNT_LIMIT = 100;
 const UNISWAP_BATCH_SIZE = 1000
 
-const blacklistTokens = ['0xD75EA151a61d06868E31F8988D28DFE5E9df57B4']
+// Not necessary, slightly speeds up loading initialization when we know tokens are bad
+// Estimate gas will ensure we aren't submitting bad bundles, but bad tokens waste time
+const blacklistTokens = [
+  '0xD75EA151a61d06868E31F8988D28DFE5E9df57B4'
+]
+
+interface GroupedMarkets {
+  marketsByToken: MarketsByToken;
+  allMarketPairs: Array<UniswappyV2EthPair>;
+}
 
 export class UniswappyV2EthPair extends EthMarket {
-
   static uniswapInterface = new Contract(WETH_ADDRESS, UNISWAP_PAIR_ABI);
   private _tokenBalances: TokenBalances
 
@@ -19,19 +31,25 @@ export class UniswappyV2EthPair extends EthMarket {
   }
 
   receiveDirectly(tokenAddress: string): boolean {
-    return true;
+    return tokenAddress in this._tokenBalances
   }
 
-  prepareReceive(tokenAddress: string, amountIn: BigNumber): Promise<Array<CallDetails>> {
-    throw new Error("No preparation for uniswappy")
+  async prepareReceive(tokenAddress: string, amountIn: BigNumber): Promise<Array<CallDetails>> {
+    if (this._tokenBalances[tokenAddress] === undefined) {
+      throw new Error(`Market does not operate on token ${tokenAddress}`)
+    }
+    if (! amountIn.gt(0)) {
+      throw new Error(`Invalid amount: ${amountIn.toString()}`)
+    }
+    // No preparation necessary
+    return []
   }
-
 
   static async getUniswappyMarkets(provider: providers.JsonRpcProvider, factoryAddress: string): Promise<Array<UniswappyV2EthPair>> {
-    const uniswapQuery = new Contract(CONTRACT_ADDRESS, UNISWAP_QUERY_ABI, provider);
+    const uniswapQuery = new Contract(UNISWAP_LOOKUP_CONTRACT_ADDRESS, UNISWAP_QUERY_ABI, provider);
 
     const marketPairs = new Array<UniswappyV2EthPair>()
-    for (let i = 0; i < 45 * UNISWAP_BATCH_SIZE; i += UNISWAP_BATCH_SIZE) {
+    for (let i = 0; i < BATCH_COUNT_LIMIT * UNISWAP_BATCH_SIZE; i += UNISWAP_BATCH_SIZE) {
       const pairs: Array<Array<string>> = (await uniswapQuery.functions.getPairsByIndexRange(factoryAddress, i, i + UNISWAP_BATCH_SIZE))[0];
       for (let i = 0; i < pairs.length; i++) {
         const pair = pairs[i];
@@ -58,7 +76,7 @@ export class UniswappyV2EthPair extends EthMarket {
     return marketPairs
   }
 
-  static async getUniswapMarketsByToken(provider: providers.JsonRpcProvider, factoryAddresses: Array<string>) {
+  static async getUniswapMarketsByToken(provider: providers.JsonRpcProvider, factoryAddresses: Array<string>): Promise<GroupedMarkets> {
     const allPairs = await Promise.all(
       _.map(factoryAddresses, factoryAddress => UniswappyV2EthPair.getUniswappyMarkets(provider, factoryAddress))
     )
@@ -89,7 +107,7 @@ export class UniswappyV2EthPair extends EthMarket {
   }
 
   static async updateReserves(provider: providers.JsonRpcProvider, allMarketPairs: Array<UniswappyV2EthPair>): Promise<void> {
-    const uniswapQuery = new Contract(CONTRACT_ADDRESS, UNISWAP_QUERY_ABI, provider);
+    const uniswapQuery = new Contract(UNISWAP_LOOKUP_CONTRACT_ADDRESS, UNISWAP_QUERY_ABI, provider);
     const pairAddresses = allMarketPairs.map(marketPair => marketPair.marketAddress);
     console.log("Updating markets, count:", pairAddresses.length)
     const reserves: Array<Array<BigNumber>> = (await uniswapQuery.functions.getReservesByPairs(pairAddresses))[0];
@@ -113,7 +131,6 @@ export class UniswappyV2EthPair extends EthMarket {
   setReservesViaMatchingArray(tokens: Array<string>, balances: Array<BigNumber>): void {
     const tokenBalances = _.zipObject(tokens, balances)
     if (!_.isEqual(this._tokenBalances, tokenBalances)) {
-      console.log('changing reserves for ', this.marketAddress)
       this._tokenBalances = tokenBalances
     }
   }

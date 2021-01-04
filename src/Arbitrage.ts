@@ -1,9 +1,9 @@
 import * as _ from "lodash";
-import { ETHER, WETH_ADDRESS } from "./addresses";
 import { BigNumber, Contract, Wallet } from "ethers";
-import { EthMarket } from "./EthMarket";
 import { FlashbotsBundleProvider } from "@flashbots/ethers-provider-bundle";
-import { bigNumberToDecimal } from "./index";
+import { WETH_ADDRESS } from "./addresses";
+import { EthMarket } from "./EthMarket";
+import { ETHER, bigNumberToDecimal } from "./utils";
 
 export interface CrossedMarketDetails {
   profit: BigNumber,
@@ -13,7 +13,7 @@ export interface CrossedMarketDetails {
   sellToMarket: EthMarket,
 }
 
-type MarketsByToken = { [tokenAddress: string]: Array<EthMarket> }
+export type MarketsByToken = { [tokenAddress: string]: Array<EthMarket> }
 
 // TODO: implement binary search (assuming linear/exponential global maximum profitability)
 const TEST_VOLUMES = [
@@ -28,7 +28,7 @@ const TEST_VOLUMES = [
   ETHER.mul(10),
 ]
 
-function getBestCrossedMarket(crossedMarkets: Array<EthMarket>[], tokenAddress: string) {
+export function getBestCrossedMarket(crossedMarkets: Array<EthMarket>[], tokenAddress: string): CrossedMarketDetails | undefined {
   let bestCrossedMarket: CrossedMarketDetails | undefined = undefined;
   for (const crossedMarket of crossedMarkets) {
     const sellToMarket = crossedMarket[0]

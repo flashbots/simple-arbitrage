@@ -1,24 +1,33 @@
 import { FlashbotsBundleProvider } from "@flashbots/ethers-provider-bundle";
-import { BigNumber, Contract, providers, Wallet } from "ethers";
+import { Contract, providers, Wallet } from "ethers";
 import { BUNDLE_EXECUTOR_ABI } from "./abi";
 import { UniswappyV2EthPair } from "./UniswappyV2EthPair";
-import { BUNDLE_EXECUTOR_ADDRESS, FACTORY_ADDRESSES } from "./addresses";
+import { FACTORY_ADDRESSES } from "./addresses";
 import { Arbitrage } from "./Arbitrage";
 import { get } from "https"
 
-const ETHEREUM_URL = process.env.ETHEREUM_URL || "http://127.0.0.1:8545"
-const FLASHBOTS_URL = process.env.FLASHBOTS_URL || ""
+const ETHEREUM_RPC_URL = process.env.ETHEREUM_RPC_URL || "http://127.0.0.1:8545"
+const FLASHBOTS_RPC_URL = process.env.FLASHBOTS_RPC_URL || ""
 const PRIVATE_KEY = process.env.PRIVATE_KEY || ""
+const BUNDLE_EXECUTOR_ADDRESS = process.env.BUNDLE_EXECUTOR_ADDRESS || ""
+
+if (FLASHBOTS_RPC_URL === "") {
+  console.warn("Must provide FLASHBOTS_RPC_URL environment variable. Please see: INSERT_URL")
+  process.exit(1)
+}
+if (PRIVATE_KEY === "") {
+  console.warn("Must provide PRIVATE_KEY environment variable")
+  process.exit(1)
+}
+if (BUNDLE_EXECUTOR_ADDRESS === "") {
+  console.warn("Must provide BUNDLE_EXECUTOR_ADDRESS environment variable. Please see README.md")
+  process.exit(1)
+}
 
 const HEALTHCHECK_URL = process.env.HEALTHCHECK_URL || ""
 
 const NETWORK_INFO = {chainId: 1, ensAddress: '', name: 'mainnet'}
-const provider = new providers.JsonRpcProvider(ETHEREUM_URL);
-
-export function bigNumberToDecimal(value: BigNumber, base = 18): number {
-  const divisor = BigNumber.from(10).pow(base)
-  return value.mul(10000).div(divisor).toNumber() / 10000
-}
+const provider = new providers.JsonRpcProvider(ETHEREUM_RPC_URL);
 
 function healthcheck() {
   if (HEALTHCHECK_URL === "") {
@@ -31,7 +40,7 @@ async function main() {
   const markets = await UniswappyV2EthPair.getUniswapMarketsByToken(provider, FACTORY_ADDRESSES);
   const arbitrage = new Arbitrage(
     new Wallet(PRIVATE_KEY),
-    new FlashbotsBundleProvider(provider, FLASHBOTS_URL, NETWORK_INFO),
+    new FlashbotsBundleProvider(provider, FLASHBOTS_RPC_URL, NETWORK_INFO),
     new Contract(BUNDLE_EXECUTOR_ADDRESS, BUNDLE_EXECUTOR_ABI, provider) )
 
   provider.on('block', async (blockNumber) => {

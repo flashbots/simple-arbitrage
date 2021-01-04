@@ -20,7 +20,6 @@ export const UNISWAP_QUERY_ABI = [{
   "type": "function"
 }]
 
-
 export const BUNDLE_EXECUTOR_ABI = [{
   "inputs": [{
     "internalType": "address payable",
@@ -401,4 +400,3 @@ export const UNISWAP_PAIR_ABI = [{
   "stateMutability": "nonpayable",
   "type": "function"
 }]
-

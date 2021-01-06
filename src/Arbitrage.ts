@@ -123,7 +123,7 @@ export class Arbitrage {
   }
 
   // TODO: take more than 1
-  async takeCrossedMarkets(bestCrossedMarkets: CrossedMarketDetails[], blockNumber: number): Promise<void> {
+  async takeCrossedMarkets(bestCrossedMarkets: CrossedMarketDetails[], blockNumber: number, minerRewardPercentage: number): Promise<void> {
     for (const bestCrossedMarket of bestCrossedMarkets) {
 
       console.log("Send this much WETH", bestCrossedMarket.volume.toString(), "get this much profit", bestCrossedMarket.profit.toString())
@@ -134,7 +134,8 @@ export class Arbitrage {
       const targets: Array<string> = [...buyCalls.targets, bestCrossedMarket.sellToMarket.marketAddress]
       const payloads: Array<string> = [...buyCalls.data, sellCallData]
       console.log({targets, payloads})
-      const transaction = await this.bundleExecutorContract.populateTransaction.uniswapWeth(bestCrossedMarket.volume, bestCrossedMarket.profit.sub(1), targets, payloads, {
+      const minerReward = bestCrossedMarket.profit.mul(minerRewardPercentage).div(100);
+      const transaction = await this.bundleExecutorContract.populateTransaction.uniswapWeth(bestCrossedMarket.volume, minerReward, targets, payloads, {
         gasPrice: BigNumber.from(0),
         gasLimit: BigNumber.from(1000000),
       });

@@ -136,7 +136,7 @@ export class Arbitrage {
       console.log({targets, payloads})
       const minerReward = bestCrossedMarket.profit.mul(minerRewardPercentage).div(100);
 
-      const ethersAbiCoder = new ethers.utils.AbiCoder()
+      const ethersAbiCoder = new utils.AbiCoder()
       const params = ethersAbiCoder.encode(['uint256', 'address[]', 'bytes[]'], [minerReward, targets, payloads])
 
       const transaction = await this.bundleExecutorContract.populateTransaction.flashloan(WETH_ADDRESS, bestCrossedMarket.volume, params, {

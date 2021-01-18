@@ -24,9 +24,9 @@ _It is important to keep both the bot wallet private key and bundleExecutor owne
 ```
 $ npm install
 $ ETHEREUM_RPC_URL=__ETHEREUM_RPC_URL_FROM_ABOVE__ \
-PRIVATE_KEY=__PRIVATE_KEY_FROM_ABOVE__ \
+    PRIVATE_KEY=__PRIVATE_KEY_FROM_ABOVE__ \
     BUNDLE_EXECUTOR_ADDRESS=__DEPLOYED_ADDRESS_FROM_ABOVE__ \
     FLASHBOTS_KEY_ID=__YOUR_PERSONAL_KEY_ID__ \
     FLASHBOTS_SECRET=__YOUR_PERSONAL_SECRET__ \
-      npm run start
+    npm run start
 ```

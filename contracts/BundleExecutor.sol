@@ -3,6 +3,11 @@ pragma solidity 0.6.12;
 
 pragma experimental ABIEncoderV2;
 
+// Aave flashloan imports
+import "../aave/FlashLoanReceiverBase.sol";
+import "../aave/IFlashLoanReceiver.sol";
+import "../aave/ILendingPool.sol";
+
 interface IERC20 {
     event Approval(address indexed owner, address indexed spender, uint value);
     event Transfer(address indexed from, address indexed to, uint value);
@@ -26,7 +31,7 @@ interface IWETH is IERC20 {
 
 // This contract simply calls multiple targets sequentially, ensuring WETH balance before and after
 
-contract FlashBotsMultiCall {
+contract FlashBotsMultiCall is FlashLoanReceiverBase {
     address private immutable owner;
     address private immutable executor;
     IWETH private constant WETH = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
@@ -52,7 +57,35 @@ contract FlashBotsMultiCall {
     receive() external payable {
     }
 
-    function uniswapWeth(uint256 _wethAmountToFirstMarket, uint256 _ethAmountToCoinbase, address[] memory _targets, bytes[] memory _payloads) external onlyExecutor payable {
+    function executeOperation(
+        address _reserve,
+        uint256 _amount,
+        uint256 _fee,
+        bytes calldata _params
+    )
+        external
+        override
+    {
+        require(_amount <= getBalanceInternal(address(this), _reserve), "Invalid balance, was the flashLoan successful?");
+
+        // ARBITRAGE BEGINS
+
+        uniswapWethParams(_amount, _params)
+        
+        // ARBITRAGE ENDS
+
+        uint totalDebt = _amount.add(_fee);
+        transferFundsBackToPoolInternal(_reserve, totalDebt);
+    }
+
+    function flashloan(address borrowedTokenAddress, uint256 amountToBorrow, bytes memory _params) public {
+        ILendingPool lendingPool = ILendingPool(addressesProvider.getLendingPool());
+        lendingPool.flashLoan(address(this), borrowedTokenAddress, amountToBorrow, _params);
+    }
+
+    function uniswapWethParams(uint256 _wethAmountToFirstMarket, bytes memory _params) external onlyExecutor payable {
+        (uint256 _ethAmountToCoinbase, address[] memory _targets, bytes[] memory _payloads) = abi.decode(_params, (uint256, address[], bytes[]))
+
         require (_targets.length == _payloads.length);
         uint256 _wethBalanceBefore = WETH.balanceOf(address(this));
         WETH.transfer(_targets[0], _wethAmountToFirstMarket);

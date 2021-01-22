@@ -78,14 +78,35 @@ contract FlashBotsMultiCall is FlashLoanReceiverBase {
         transferFundsBackToPoolInternal(_reserve, totalDebt);
     }
 
+    // In theory borrowedTokenAddress should be WETH for this, but someone else could make it a different asset by changing uniswapWETHParams
     function flashloan(address borrowedTokenAddress, uint256 amountToBorrow, bytes memory _params) public {
         ILendingPool lendingPool = ILendingPool(addressesProvider.getLendingPool());
         lendingPool.flashLoan(address(this), borrowedTokenAddress, amountToBorrow, _params);
     }
 
-    function uniswapWethParams(uint256 _wethAmountToFirstMarket, bytes memory _params) external onlyExecutor payable {
+    function uniswapWethParams(uint256 _wethAmountToFirstMarket, bytes memory _params) internal payable {
         (uint256 _ethAmountToCoinbase, address[] memory _targets, bytes[] memory _payloads) = abi.decode(_params, (uint256, address[], bytes[]))
 
+        require (_targets.length == _payloads.length);
+        uint256 _wethBalanceBefore = WETH.balanceOf(address(this));
+        WETH.transfer(_targets[0], _wethAmountToFirstMarket);
+        for (uint256 i = 0; i < _targets.length; i++) {
+            (bool _success, bytes memory _response) = _targets[i].call(_payloads[i]);
+            require(_success); _response;
+        }
+
+        uint256 _wethBalanceAfter = WETH.balanceOf(address(this));
+        require(_wethBalanceAfter > _wethBalanceBefore + _ethAmountToCoinbase);
+        if (_ethAmountToCoinbase == 0) return;
+
+        uint256 _ethBalance = address(this).balance;
+        if (_ethBalance < _ethAmountToCoinbase) {
+            WETH.withdraw(_ethAmountToCoinbase - _ethBalance);
+        }
+        block.coinbase.transfer(_ethAmountToCoinbase);
+    }
+
+    function uniswapWeth(uint256 _wethAmountToFirstMarket, uint256 _ethAmountToCoinbase, address[] memory _targets, bytes[] memory _payloads) external onlyExecutor payable {
         require (_targets.length == _payloads.length);
         uint256 _wethBalanceBefore = WETH.balanceOf(address(this));
         WETH.transfer(_targets[0], _wethAmountToFirstMarket);

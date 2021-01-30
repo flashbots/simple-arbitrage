@@ -29,7 +29,7 @@ if (FLASHBOTS_KEY_ID === "" || FLASHBOTS_SECRET === "") {
 
 const HEALTHCHECK_URL = process.env.HEALTHCHECK_URL || ""
 
-const provider = new providers.JsonRpcProvider(ETHEREUM_RPC_URL);
+const provider = new providers.StaticJsonRpcProvider(ETHEREUM_RPC_URL);
 
 function healthcheck() {
   if (HEALTHCHECK_URL === "") {

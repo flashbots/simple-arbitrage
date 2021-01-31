@@ -1,5 +1,5 @@
 import * as _ from "lodash";
-import { BigNumber, Contract, Wallet, utils } from "ethers";
+import { BigNumber, Contract, Wallet, utils, ethers } from "ethers";
 import { FlashbotsBundleProvider } from "@flashbots/ethers-provider-bundle";
 import { WETH_ADDRESS } from "./addresses";
 import { EthMarket } from "./EthMarket";
@@ -17,17 +17,31 @@ export type MarketsByToken = { [tokenAddress: string]: Array<EthMarket> }
 
 // TODO: implement binary search (assuming linear/exponential global maximum profitability)
 const TEST_VOLUMES = [
-  ETHER.div(100),
-  ETHER.div(10),
-  ETHER.div(6),
-  ETHER.div(4),
-  ETHER.div(2),
-  ETHER.div(1),
-  ETHER.mul(2),
   ETHER.mul(5),
   ETHER.mul(10),
+  ETHER.mul(15),
+  ETHER.mul(20),
+  ETHER.mul(25),
+  ETHER.mul(30),
+  ETHER.mul(35),
+  ETHER.mul(40),
+  ETHER.mul(45),
+  ETHER.mul(50),
+  ETHER.mul(75),
+  ETHER.mul(100),
+  ETHER.mul(150),
+  ETHER.mul(200),
+  ETHER.mul(250),
+  ETHER.mul(300),
+  ETHER.mul(350),
+  ETHER.mul(400),
+  ETHER.mul(450),
+  ETHER.mul(500),
+  ETHER.mul(750),
+  ETHER.mul(1000)
 ]
 
+const flashloanFeePercentage = 9 // (0.09%) or 9/10000
 export function getBestCrossedMarket(crossedMarkets: Array<EthMarket>[], tokenAddress: string): CrossedMarketDetails | undefined {
   let bestCrossedMarket: CrossedMarketDetails | undefined = undefined;
   for (const crossedMarket of crossedMarkets) {
@@ -114,7 +128,7 @@ export class Arbitrage {
       }
 
       const bestCrossedMarket = getBestCrossedMarket(crossedMarkets, tokenAddress);
-      if (bestCrossedMarket !== undefined && bestCrossedMarket.profit.gt(ETHER.div(1000))) {
+      if (bestCrossedMarket !== undefined && bestCrossedMarket.profit.gt(ETHER.div(100))) {
         bestCrossedMarkets.push(bestCrossedMarket)
       }
     }
@@ -125,52 +139,74 @@ export class Arbitrage {
   // TODO: take more than 1
   async takeCrossedMarkets(bestCrossedMarkets: CrossedMarketDetails[], blockNumber: number, minerRewardPercentage: number): Promise<void> {
     for (const bestCrossedMarket of bestCrossedMarkets) {
-
-      console.log("Send this much WETH", bestCrossedMarket.volume.toString(), "get this much profit", bestCrossedMarket.profit.toString())
       const buyCalls = await bestCrossedMarket.buyFromMarket.sellTokensToNextMarket(WETH_ADDRESS, bestCrossedMarket.volume, bestCrossedMarket.sellToMarket);
       const inter = bestCrossedMarket.buyFromMarket.getTokensOut(WETH_ADDRESS, bestCrossedMarket.tokenAddress, bestCrossedMarket.volume)
       const sellCallData = await bestCrossedMarket.sellToMarket.sellTokens(bestCrossedMarket.tokenAddress, inter, this.bundleExecutorContract.address);
 
       const targets: Array<string> = [...buyCalls.targets, bestCrossedMarket.sellToMarket.marketAddress]
       const payloads: Array<string> = [...buyCalls.data, sellCallData]
-      console.log({targets, payloads})
-      const minerReward = bestCrossedMarket.profit.mul(minerRewardPercentage).div(100);
-
-      const ethersAbiCoder = new utils.AbiCoder()
-      const params = ethersAbiCoder.encode(['uint256', 'address[]', 'bytes[]'], [minerReward, targets, payloads])
-
-      const transaction = await this.bundleExecutorContract.populateTransaction.flashloan(WETH_ADDRESS, bestCrossedMarket.volume, params, {
-        gasPrice: BigNumber.from(0),
-        gasLimit: BigNumber.from(1000000),
-      });
-
-      try {
-        const estimateGas = await this.bundleExecutorContract.provider.estimateGas(
-          {
-            ...transaction,
-            from: this.executorWallet.address
-          })
-        if (estimateGas.gt(1400000)) {
-          console.log("EstimateGas succeeded, but suspiciously large: " + estimateGas.toString())
-          continue
-        }
-        transaction.gasLimit = estimateGas.mul(2)
-      } catch (e) {
-        console.warn(`Estimate gas failure for ${JSON.stringify(bestCrossedMarket)}`)
-        continue
-      }
-      const bundlePromises = _.map([blockNumber + 1, blockNumber + 2], targetBlockNumber =>
-        this.flashbotsProvider.sendBundle(
-          [
-            {
-              signer: this.executorWallet,
-              transaction: transaction
+      const flashloanFee = bestCrossedMarket.volume.mul(flashloanFeePercentage).div(10000);
+      if (flashloanFee.lt(bestCrossedMarket.profit)){
+        const profitMinusFee = bestCrossedMarket.profit.sub(flashloanFee)
+        
+        try {
+          const minerReward = profitMinusFee.mul(minerRewardPercentage).div(100);
+          const profitMinusFeeMinusMinerReward = profitMinusFee.sub(minerReward)
+          console.log("Send this much WETH", bestCrossedMarket.volume.toString(), "get this much profit after fees", profitMinusFeeMinusMinerReward.toString())
+      
+          const ethersAbiCoder = new utils.AbiCoder()
+          const typeParams = ['uint256', 'address[]', 'bytes[]']
+          const inputParams = [minerReward.toString(), targets, payloads]
+          const params = ethersAbiCoder.encode(typeParams, inputParams)
+          console.log({targets, payloads})
+        
+          if (profitMinusFeeMinusMinerReward.gt(0)){
+  
+            const transaction = await this.bundleExecutorContract.populateTransaction.flashloan(WETH_ADDRESS, bestCrossedMarket.volume, params, {
+              gasPrice: BigNumber.from(0),
+              gasLimit: BigNumber.from(1400000),
+            });
+      
+            try {
+              const estimateGas = await this.bundleExecutorContract.provider.estimateGas(
+                {
+                  ...transaction,
+                  from: this.executorWallet.address
+                })
+              if (estimateGas.gt(1400000)) {
+                console.log("EstimateGas succeeded, but suspiciously large: " + estimateGas.toString())
+                continue
+              }
+              transaction.gasLimit = estimateGas.mul(2)
+            } catch (e) {
+              console.warn(`Estimate gas failure for ${JSON.stringify(bestCrossedMarket)}`)
+              continue
             }
-          ],
-          targetBlockNumber
-        )
-      )
-      await Promise.all(bundlePromises)
+            const bundlePromises = _.map([blockNumber + 1, blockNumber + 2], targetBlockNumber =>
+              this.flashbotsProvider.sendBundle(
+                [
+                  {
+                    signer: this.executorWallet,
+                    transaction: transaction
+                  }
+                ],
+                targetBlockNumber
+              )
+            )
+            await Promise.all(bundlePromises)
+  
+          } else {
+            console.log("Transaction would be unprofitable after the flashloan fee and miner reward.")
+            continue
+          }
+        
+        } catch (e) {
+          console.warn("Error setting miner and flashloan payment:", e);
+        }
+      } else {
+        console.log("Flashloan fee is greater than profit.")
+      }
+
       return
     }
     throw new Error("No arbitrage submitted to relay")

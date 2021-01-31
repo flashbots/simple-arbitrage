@@ -66,7 +66,7 @@ contract FlashBotsMultiCallFL is FlashLoanReceiverBase {
         uint256[] memory amounts = new uint256[](1);
         amounts[0] = amountToBorrow;
 
-        uint256[] memory modes = new uint256[](7);
+        uint256[] memory modes = new uint256[](1);
         modes[0] = 0;
 
         address onBehalfOf = address(this);

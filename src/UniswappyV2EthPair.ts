@@ -96,7 +96,7 @@ export class UniswappyV2EthPair extends EthMarket {
     await UniswappyV2EthPair.updateReserves(provider, allMarketPairs);
 
     const marketsByToken = _.chain(allMarketPairs)
-      .filter(pair => (pair.getBalance(WETH_ADDRESS).gt(ETHER)))
+      .filter(pair => (pair.getBalance(WETH_ADDRESS).gt(ETHER.mul(10))))
       .groupBy(pair => pair.tokens[0] === WETH_ADDRESS ? pair.tokens[1] : pair.tokens[0])
       .value()
 

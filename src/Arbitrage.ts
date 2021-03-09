@@ -155,21 +155,29 @@ export class Arbitrage {
         console.warn(`Estimate gas failure for ${JSON.stringify(bestCrossedMarket)}`)
         continue
       }
-      const bundlePromises = _.map([blockNumber + 1, blockNumber + 2], targetBlockNumber =>
-        this.flashbotsProvider.sendBundle(
-          [
-            {
-              signer: this.executorWallet,
-              transaction: transaction
-            }
-          ],
+      const bundledTransactions = [
+        {
+          signer: this.executorWallet,
+          transaction: transaction
+        }
+      ];
+      console.log(bundledTransactions)
+      const signedBundle = await this.flashbotsProvider.signBundle(bundledTransactions)
+      //
+      const simulation = await this.flashbotsProvider.simulate(signedBundle, blockNumber + 1 )
+      if ("error" in simulation || simulation.firstRevert !== undefined) {
+        console.log(`Simulation Error on token ${bestCrossedMarket.tokenAddress}, skipping`)
+        continue
+      }
+      console.log(`Submitting bundle, profit sent to miner: ${bigNumberToDecimal(simulation.coinbaseDiff)}, effective gas price: ${bigNumberToDecimal(simulation.coinbaseDiff.div(simulation.totalGasUsed), 9)} GWEI`)
+      const bundlePromises =  _.map([blockNumber + 1, blockNumber + 2], targetBlockNumber =>
+        this.flashbotsProvider.sendRawBundle(
+          signedBundle,
           targetBlockNumber
-        )
-      )
+        ))
       await Promise.all(bundlePromises)
       return
     }
     throw new Error("No arbitrage submitted to relay")
   }
-
 }

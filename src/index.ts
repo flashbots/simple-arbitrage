@@ -25,7 +25,7 @@ if (BUNDLE_EXECUTOR_ADDRESS === "") {
 }
 
 if (FLASHBOTS_RELAY_SIGNING_KEY === "") {
-  console.warn("Must provide FLASHBOTS_RELAY_SIGNING_KEY. Please see https://hackmd.io/@flashbots/rk-qzgzCD")
+  console.warn("Must provide FLASHBOTS_RELAY_SIGNING_KEY. Please see https://github.com/flashbots/pm/blob/main/guides/searcher-onboarding.md")
   process.exit(1)
 }
 

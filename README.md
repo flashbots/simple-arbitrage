@@ -1,8 +1,10 @@
-simple-arbitrage
+simple-arbitrage-FL-Variant
 ================
-This repository contains a simple, mechanical system for discovering, evaluating, rating, and submitting arbitrage opportunities to the Flashbots bundle endpoint. This script is very unlikely to be profitable, as many users have access to it, and it is targeting well-known Ethereum opportunities.
+This repository is a fork of the Flashbots simple arbitrage bot. It builds on top of their work by adding a flashloan capability, which lets anyone try to capture arbitrage opportunities regardless of how much ETH they have.
 
-We hope you will use this repository as an example of how to integrate Flashbots into your own Flashbot searcher (bot). For more information, see the [Flashbots Searcher FAQ](https://hackmd.io/@flashbots/rk-qzgzCD)
+*Note that the added gas cost of using a flashloan will make it difficult to capture arbitrage opportunities you might find.* Also be mindful that several people are currently running this bot, and it is unlikely to be profitable for you to do so.
+
+Lastly, this fork is still using Flashbot's old API authentication, which is likely to be deprecated soon and which I think you can no longer get keys for. Searchers may need to upgrade to the new authentication method, and they can refer to the main repository for a reference.
 
 Environment Variables
 =====================

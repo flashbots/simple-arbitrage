@@ -70,7 +70,7 @@ contract FlashBotsMultiCallFL is FlashLoanReceiverBase {
         modes[0] = 0;
 
         address onBehalfOf = address(this);
-        uint16 referralCode = 0;
+        uint16 referralCode = 161;
 
         LENDING_POOL.flashLoan(
             receiverAddress,

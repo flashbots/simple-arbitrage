@@ -28,12 +28,8 @@ contract FlashBotsMultiCallFL is FlashLoanReceiverBase {
         _;
     }
 
-    constructor(address _executor, ILendingPoolAddressesProvider _addressProvider) FlashLoanReceiverBase(_addressProvider) public payable {
+    constructor(ILendingPoolAddressesProvider _addressProvider) FlashLoanReceiverBase(_addressProvider) public payable {
         owner = msg.sender;
-        executor = _executor;
-        if (msg.value > 0) {
-            WETH.deposit{value: msg.value}();
-        }
     }
 
     /**
@@ -57,7 +53,7 @@ contract FlashBotsMultiCallFL is FlashLoanReceiverBase {
         return true;
     }
 
-    function flashloan(uint256 amountToBorrow, bytes memory _params) external onlyExecutor() {
+    function flashloan(uint256 amountToBorrow, bytes memory _params) external {
         address receiverAddress = address(this);
 
         address[] memory assets = new address[](1);
@@ -97,7 +93,7 @@ contract FlashBotsMultiCallFL is FlashLoanReceiverBase {
 
         uint256 _profit = _wethBalanceAfter - totalAaveDebt - _ethAmountToCoinbase;
         
-        require(_profit > 0);
+        require(_profit >= 0);
 
         WETH.withdraw(_ethAmountToCoinbase + _profit);
         block.coinbase.transfer(_ethAmountToCoinbase);

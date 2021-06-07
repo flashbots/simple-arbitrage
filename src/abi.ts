@@ -20,39 +20,148 @@ export const UNISWAP_QUERY_ABI = [{
   "type": "function"
 }]
 
-export const BUNDLE_EXECUTOR_ABI = [{
-  "inputs": [{
-    "internalType": "address payable",
-    "name": "_to",
-    "type": "address"
-  }, {"internalType": "uint256", "name": "_value", "type": "uint256"}, {
-    "internalType": "bytes",
-    "name": "_data",
-    "type": "bytes"
-  }],
-  "name": "call",
-  "outputs": [{"internalType": "bytes", "name": "", "type": "bytes"}],
-  "stateMutability": "payable",
-  "type": "function"
-}, {
-  "inputs": [{"internalType": "address", "name": "_executor", "type": "address"}],
-  "stateMutability": "payable",
-  "type": "constructor"
-}, {
-  "inputs": [{
-    "internalType": "uint256",
-    "name": "_wethAmountToFirstMarket",
-    "type": "uint256"
-  }, {"internalType": "uint256", "name": "_ethAmountToCoinbase", "type": "uint256"}, {
-    "internalType": "address[]",
-    "name": "_targets",
-    "type": "address[]"
-  }, {"internalType": "bytes[]", "name": "_payloads", "type": "bytes[]"}],
-  "name": "uniswapWeth",
-  "outputs": [],
-  "stateMutability": "payable",
-  "type": "function"
-}, {"stateMutability": "payable", "type": "receive"}]
+export const BUNDLE_EXECUTOR_ABI = [
+	{
+		"inputs": [
+			{
+				"internalType": "contract ILendingPoolAddressesProvider",
+				"name": "_addressProvider",
+				"type": "address"
+			}
+		],
+		"stateMutability": "payable",
+		"type": "constructor"
+	},
+	{
+		"inputs": [],
+		"name": "ADDRESSES_PROVIDER",
+		"outputs": [
+			{
+				"internalType": "contract ILendingPoolAddressesProvider",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "LENDING_POOL",
+		"outputs": [
+			{
+				"internalType": "contract ILendingPool",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "WETH_address",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address payable",
+				"name": "_to",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "_value",
+				"type": "uint256"
+			},
+			{
+				"internalType": "bytes",
+				"name": "_data",
+				"type": "bytes"
+			}
+		],
+		"name": "call",
+		"outputs": [
+			{
+				"internalType": "bytes",
+				"name": "",
+				"type": "bytes"
+			}
+		],
+		"stateMutability": "payable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address[]",
+				"name": "assets",
+				"type": "address[]"
+			},
+			{
+				"internalType": "uint256[]",
+				"name": "amounts",
+				"type": "uint256[]"
+			},
+			{
+				"internalType": "uint256[]",
+				"name": "premiums",
+				"type": "uint256[]"
+			},
+			{
+				"internalType": "address",
+				"name": "initiator",
+				"type": "address"
+			},
+			{
+				"internalType": "bytes",
+				"name": "params",
+				"type": "bytes"
+			}
+		],
+		"name": "executeOperation",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "amountToBorrow",
+				"type": "uint256"
+			},
+			{
+				"internalType": "bytes",
+				"name": "_params",
+				"type": "bytes"
+			}
+		],
+		"name": "flashloan",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"stateMutability": "payable",
+		"type": "receive"
+	}
+]
 
 
 export const UNISWAP_PAIR_ABI = [{

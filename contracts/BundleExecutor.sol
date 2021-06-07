@@ -46,9 +46,9 @@ contract FlashBotsMultiCallFL is FlashLoanReceiverBase {
         override
         returns (bool)
     {
-        uint amountOwing = amounts[0].add(premiums[0]);
-        uniswapWethFLParams(amounts[0], params, amountOwing);
-        WETH.approve(address(LENDING_POOL), amountOwing);
+        uint aaveDebt = amounts[0].add(premiums[0]);
+        uniswapWethFLParams(amounts[0], params, aaveDebt);
+        WETH.approve(address(LENDING_POOL), aaveDebt);
 
         return true;
     }
@@ -79,7 +79,7 @@ contract FlashBotsMultiCallFL is FlashLoanReceiverBase {
         );
     }
 
-    function uniswapWethFLParams(uint256 _amountToFirstMarket, bytes memory _params, uint256 totalAaveDebt) internal {
+    function uniswapWethFLParams(uint256 _amountToFirstMarket, bytes memory _params, uint256 aaveDebt) internal {
         (uint256 _ethAmountToCoinbase, address[] memory _targets, bytes[] memory _payloads) = abi.decode(_params, (uint256, address[], bytes[]));
         require(_targets.length == _payloads.length);
 
@@ -91,13 +91,13 @@ contract FlashBotsMultiCallFL is FlashLoanReceiverBase {
 
         uint256 _wethBalanceAfter = WETH.balanceOf(address(this));
 
-        uint256 _profit = _wethBalanceAfter - totalAaveDebt - _ethAmountToCoinbase;
+        uint256 _profit = _wethBalanceAfter - aaveDebt - _ethAmountToCoinbase;
         
         require(_profit >= 0);
 
         WETH.withdraw(_ethAmountToCoinbase + _profit);
         block.coinbase.transfer(_ethAmountToCoinbase);
-        msg.sender.transfer(_profit);
+        tx.origin.transfer(_profit);
     }
 
     function call(address payable _to, uint256 _value, bytes calldata _data) external onlyOwner payable returns (bytes memory) {

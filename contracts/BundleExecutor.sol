@@ -15,7 +15,7 @@ contract FlashBotsMultiCallFL is FlashLoanReceiverBase {
     using SafeMath for uint256;
     address private immutable owner;
     address private immutable executor;
-    address public WETH_address = address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+    address public constant WETH_address = address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     IWETH private constant WETH = IWETH(WETH_address);
 
     modifier onlyExecutor() {

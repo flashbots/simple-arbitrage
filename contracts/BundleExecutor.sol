@@ -30,6 +30,7 @@ contract FlashBotsMultiCallFL is FlashLoanReceiverBase {
 
     constructor(ILendingPoolAddressesProvider _addressProvider) FlashLoanReceiverBase(_addressProvider) public payable {
         owner = msg.sender;
+        WETH.approve(address(LENDING_POOL), uint(-1));
     }
 
     /**
@@ -48,7 +49,6 @@ contract FlashBotsMultiCallFL is FlashLoanReceiverBase {
     {
         uint aaveDebt = amounts[0].add(premiums[0]);
         uniswapWethFLParams(amounts[0], params, aaveDebt);
-        WETH.approve(address(LENDING_POOL), aaveDebt);
 
         return true;
     }

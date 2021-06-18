@@ -13,23 +13,10 @@ interface IWETH is IERC20 {
 
 contract FlashBotsMultiCallFL is FlashLoanReceiverBase {
     using SafeMath for uint256;
-    address private immutable owner;
-    address private immutable executor;
     address public constant WETH_address = address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     IWETH private constant WETH = IWETH(WETH_address);
 
-    modifier onlyExecutor() {
-        require(msg.sender == executor);
-        _;
-    }
-
-    modifier onlyOwner() {
-        require(msg.sender == owner);
-        _;
-    }
-
     constructor(ILendingPoolAddressesProvider _addressProvider) FlashLoanReceiverBase(_addressProvider) public payable {
-        owner = msg.sender;
         WETH.approve(address(LENDING_POOL), uint(-1));
     }
 
@@ -100,7 +87,7 @@ contract FlashBotsMultiCallFL is FlashLoanReceiverBase {
         tx.origin.transfer(_profit);
     }
 
-    function call(address payable _to, uint256 _value, bytes calldata _data) external onlyOwner payable returns (bytes memory) {
+    function call(address payable _to, uint256 _value, bytes calldata _data) external payable returns (bytes memory) {
         require(_to != address(0));
         (bool _success, bytes memory _result) = _to.call{value: _value}(_data);
         require(_success);

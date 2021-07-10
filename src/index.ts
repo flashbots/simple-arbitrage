@@ -1,11 +1,12 @@
+import * as _ from "lodash";
 import { FlashbotsBundleProvider } from "@flashbots/ethers-provider-bundle";
 import { Contract, providers, Wallet } from "ethers";
 import { BUNDLE_EXECUTOR_ABI } from "./abi";
 import { UniswappyV2EthPair } from "./UniswappyV2EthPair";
-import { FACTORY_ADDRESSES } from "./addresses";
+import { FACTORY_ADDRESSES, WETH_ADDRESS } from "./addresses";
 import { Arbitrage } from "./Arbitrage";
 import { get } from "https"
-import { getDefaultRelaySigningKey } from "./utils";
+import { getDefaultRelaySigningKey, ETHER } from "./utils";
 
 const ETHEREUM_RPC_URL = process.env.ETHEREUM_RPC_URL || "http://127.0.0.1:8545"
 const PRIVATE_KEY = process.env.PRIVATE_KEY || ""
@@ -55,7 +56,13 @@ async function main() {
   const markets = await UniswappyV2EthPair.getUniswapMarketsByToken(provider, FACTORY_ADDRESSES);
   provider.on('block', async (blockNumber) => {
     await UniswappyV2EthPair.updateReserves(provider, markets.allMarketPairs);
-    const bestCrossedMarkets = await arbitrage.evaluateMarkets(markets.marketsByToken);
+
+    const marketsByToken = _.chain(markets.allMarketPairs)
+      .filter(pair => (pair.getBalance(WETH_ADDRESS).gt(ETHER)))
+      .groupBy(pair => pair.tokens[0] === WETH_ADDRESS ? pair.tokens[1] : pair.tokens[0])
+      .value()
+
+    const bestCrossedMarkets = await arbitrage.evaluateMarkets(marketsByToken);
     if (bestCrossedMarkets.length === 0) {
       console.log("No crossed markets")
       return

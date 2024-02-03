@@ -33,9 +33,13 @@ export function getBestCrossedMarket(crossedMarkets: Array<EthMarket>[], tokenAd
   for (const crossedMarket of crossedMarkets) {
     const sellToMarket = crossedMarket[0]
     const buyFromMarket = crossedMarket[1]
+    // we use a series of predefined values to search for a profitable trade
     for (const size of TEST_VOLUMES) {
+      // find out how much we can buy using sell amt = size
       const tokensOutFromBuyingSize = buyFromMarket.getTokensOut(WETH_ADDRESS, tokenAddress, size);
+      // using the amt we bought, find out how much can we sell this for 
       const proceedsFromSellingTokens = sellToMarket.getTokensOut(tokenAddress, WETH_ADDRESS, tokensOutFromBuyingSize)
+      // profit = amt sold - amt bought
       const profit = proceedsFromSellingTokens.sub(size);
       if (bestCrossedMarket !== undefined && profit.lt(bestCrossedMarket.profit)) {
         // If the next size up lost value, meet halfway. TODO: replace with real binary search
@@ -77,7 +81,7 @@ export class Arbitrage {
     this.bundleExecutorContract = bundleExecutorContract;
   }
 
-  static printCrossedMarket(crossedMarket: CrossedMarketDetails): void {
+  static  printCrossedMarket(crossedMarket: CrossedMarketDetails): void {
     const buyTokens = crossedMarket.buyFromMarket.tokens
     const sellTokens = crossedMarket.sellToMarket.tokens
     console.log(
@@ -90,12 +94,14 @@ export class Arbitrage {
     )
   }
 
-
+  // marketsByToken = [ { pair1token1: [ (#uniswapFactoryAddresses) UniswappyV2EthPair<pair1pool, [pair1token0, pair1token1]>,  (#sushiswapFactoryAddresses) UniswappyV2EthPair<pair3pool, [pair1token0, pair1token1] ]}}
   async evaluateMarkets(marketsByToken: MarketsByToken): Promise<Array<CrossedMarketDetails>> {
     const bestCrossedMarkets = new Array<CrossedMarketDetails>()
 
     for (const tokenAddress in marketsByToken) {
+      // tokenAddress corresponds to key pair1token1
       const markets = marketsByToken[tokenAddress]
+      // we find buyprice/sellprice for each pool that contains this tokenAddress
       const pricedMarkets = _.map(markets, (ethMarket: EthMarket) => {
         return {
           ethMarket: ethMarket,
@@ -105,6 +111,7 @@ export class Arbitrage {
       });
 
       const crossedMarkets = new Array<Array<EthMarket>>()
+      // use two forloops to check if any sell token price is greater than any buy token price for any pool
       for (const pricedMarket of pricedMarkets) {
         _.forEach(pricedMarkets, pm => {
           if (pm.sellTokenPrice.gt(pricedMarket.buyTokenPrice)) {
@@ -113,7 +120,9 @@ export class Arbitrage {
         })
       }
 
+      // query different input WETH amt to buy, search if there is profit to be made
       const bestCrossedMarket = getBestCrossedMarket(crossedMarkets, tokenAddress);
+      // only proceed to add to execute txn to bundle if the profit to be made is greater than ETHER.div
       if (bestCrossedMarket !== undefined && bestCrossedMarket.profit.gt(ETHER.div(1000))) {
         bestCrossedMarkets.push(bestCrossedMarket)
       }
@@ -123,6 +132,7 @@ export class Arbitrage {
   }
 
   // TODO: take more than 1
+  // perform encoding of calldata and calling flashbot to receive bundle of txn for execution
   async takeCrossedMarkets(bestCrossedMarkets: CrossedMarketDetails[], blockNumber: number, minerRewardPercentage: number): Promise<void> {
     for (const bestCrossedMarket of bestCrossedMarkets) {
 

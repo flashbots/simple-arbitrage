@@ -7,6 +7,8 @@ import { Arbitrage } from "./Arbitrage";
 import { get } from "https"
 import { getDefaultRelaySigningKey } from "./utils";
 
+require('dotenv').config()
+
 const ETHEREUM_RPC_URL = process.env.ETHEREUM_RPC_URL || "http://127.0.0.1:8545"
 const PRIVATE_KEY = process.env.PRIVATE_KEY || ""
 const BUNDLE_EXECUTOR_ADDRESS = process.env.BUNDLE_EXECUTOR_ADDRESS || ""
@@ -52,15 +54,19 @@ async function main() {
     flashbotsProvider,
     new Contract(BUNDLE_EXECUTOR_ADDRESS, BUNDLE_EXECUTOR_ABI, provider) )
 
+  // FACTORY_ADDRESS refers to different DEXES. we query pools for multiple DEX.
   const markets = await UniswappyV2EthPair.getUniswapMarketsByToken(provider, FACTORY_ADDRESSES);
   provider.on('block', async (blockNumber) => {
+    // reserves are updated for all market pair - including pools with WETH balance that is below 1ETH
     await UniswappyV2EthPair.updateReserves(provider, markets.allMarketPairs);
+    // returns a list of arbitrage opportunities in descending order of profits
     const bestCrossedMarkets = await arbitrage.evaluateMarkets(markets.marketsByToken);
     if (bestCrossedMarkets.length === 0) {
       console.log("No crossed markets")
       return
     }
     bestCrossedMarkets.forEach(Arbitrage.printCrossedMarket);
+    // encoding of txn param and calling flashbot to take txn bundle
     arbitrage.takeCrossedMarkets(bestCrossedMarkets, blockNumber, MINER_REWARD_PERCENTAGE).then(healthcheck).catch(console.error)
   })
 }

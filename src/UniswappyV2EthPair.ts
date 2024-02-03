@@ -49,13 +49,17 @@ export class UniswappyV2EthPair extends EthMarket {
     const uniswapQuery = new Contract(UNISWAP_LOOKUP_CONTRACT_ADDRESS, UNISWAP_QUERY_ABI, provider);
 
     const marketPairs = new Array<UniswappyV2EthPair>()
+
+    // for a predefined max amount of uniswap pair amount of uniswap pair
     for (let i = 0; i < BATCH_COUNT_LIMIT * UNISWAP_BATCH_SIZE; i += UNISWAP_BATCH_SIZE) {
+      // smart contract function with returns (token0,token1,pool) addresses
       const pairs: Array<Array<string>> = (await uniswapQuery.functions.getPairsByIndexRange(factoryAddress, i, i + UNISWAP_BATCH_SIZE))[0];
       for (let i = 0; i < pairs.length; i++) {
         const pair = pairs[i];
         const marketAddress = pair[2];
         let tokenAddress: string;
 
+        // check if any of the tokens is WETH
         if (pair[0] === WETH_ADDRESS) {
           tokenAddress = pair[1]
         } else if (pair[1] === WETH_ADDRESS) {
@@ -63,8 +67,13 @@ export class UniswappyV2EthPair extends EthMarket {
         } else {
           continue;
         }
+
+        // check if any tokens are blacklisted
         if (!blacklistTokens.includes(tokenAddress)) {
+          // pool address, [token0address, token1address]
           const uniswappyV2EthPair = new UniswappyV2EthPair(marketAddress, [pair[0], pair[1]], "");
+          // add the pairs we are considering into marketPairs array
+          // Arr<>: UniswappyV2EthPair<pool address, [token0address, token1address]>
           marketPairs.push(uniswappyV2EthPair);
         }
       }
@@ -77,15 +86,27 @@ export class UniswappyV2EthPair extends EthMarket {
   }
 
   static async getUniswapMarketsByToken(provider: providers.JsonRpcProvider, factoryAddresses: Array<string>): Promise<GroupedMarkets> {
+    // for each DEX address (incl uniswap) provided in the factoryAddress array
+    // returns all uniswap pairs - (token0,token1,pool) addresses that are not blacklisted and has WETH as one of its tokens
+    // allPairs = [ (#uniswapFactoryAddresses) [UniswappyV2EthPair<pair1pool, [pair1token0, pair1token1]>, UniswappyV2EthPair<pair2pool, [pair1token0, pair2token1]>, UniswappyV2EthPair<pair3pool, [pair2token1, pair1token0]>], 
+    //              (#sushiswapFactoryAddresses)  [UniswappyV2EthPair<pair1token1, [pair1token0, pair1token1]>]]
     const allPairs = await Promise.all(
       _.map(factoryAddresses, factoryAddress => UniswappyV2EthPair.getUniswappyMarkets(provider, factoryAddress))
     )
 
+    // flatten array single level deep -> this flattens grouping via DEX so instead we group by token that is not WETH
+    // grouping by WETH
+    // assuming pair1token0 is WETH
+    // marketsByTokenAll = [ { pair1token1: [ (#uniswapFactoryAddresses) UniswappyV2EthPair<pair1pool, [pair1token0, pair1token1]>,  (#sushiswapFactoryAddresses) UniswappyV2EthPair<pair3pool, [pair1token0, pair1token1] ]}}
+    //                     , { pair2token1: [ (#uniswapFactoryAddresses) UniswappyV2EthPair<pair2pool, [pair1token0, pair2token1]>]} }
     const marketsByTokenAll = _.chain(allPairs)
       .flatten()
       .groupBy(pair => pair.tokens[0] === WETH_ADDRESS ? pair.tokens[1] : pair.tokens[0])
       .value()
 
+    // if there is only one protocol with hat particular matching token, there is no arbitrage opportunity. remove that from selection.
+    // copy out the values and put them into a list, so that we can query for their reserve
+    // allMarketPairs =  [ (#uniswapFactoryAddresses) UniswappyV2EthPair<pair1pool, [pair1token0, pair1token1]>,  (#sushiswapFactoryAddresses) UniswappyV2EthPair<pair3pool, [pair1token0, pair1token1] ]
     const allMarketPairs = _.chain(
       _.pickBy(marketsByTokenAll, a => a.length > 1) // weird TS bug, chain'd pickBy is Partial<>
     )
@@ -93,8 +114,11 @@ export class UniswappyV2EthPair extends EthMarket {
       .flatten()
       .value()
 
+    // set reserves for market pair
     await UniswappyV2EthPair.updateReserves(provider, allMarketPairs);
 
+    // return all pairs where weth value is greater than ether. think this is so we make sure that pool contains sizable amount of ethereum, not an empty pool
+    // marketsByToken = [ { pair1token1: [ (#uniswapFactoryAddresses) UniswappyV2EthPair<pair1pool, [pair1token0, pair1token1]>,  (#sushiswapFactoryAddresses) UniswappyV2EthPair<pair3pool, [pair1token0, pair1token1] ]}}
     const marketsByToken = _.chain(allMarketPairs)
       .filter(pair => (pair.getBalance(WETH_ADDRESS).gt(ETHER)))
       .groupBy(pair => pair.tokens[0] === WETH_ADDRESS ? pair.tokens[1] : pair.tokens[0])
@@ -106,14 +130,19 @@ export class UniswappyV2EthPair extends EthMarket {
     }
   }
 
+    // allMarketPairs =  [ (#uniswapFactoryAddresses) UniswappyV2EthPair<pair1pool, [pair1token0, pair1token1]>,  (#sushiswapFactoryAddresses) UniswappyV2EthPair<pair3pool, [pair1token0, pair1token1] ]
   static async updateReserves(provider: providers.JsonRpcProvider, allMarketPairs: Array<UniswappyV2EthPair>): Promise<void> {
     const uniswapQuery = new Contract(UNISWAP_LOOKUP_CONTRACT_ADDRESS, UNISWAP_QUERY_ABI, provider);
+    // pairAddresses = [pair1pool, pair3pool]
     const pairAddresses = allMarketPairs.map(marketPair => marketPair.marketAddress);
     console.log("Updating markets, count:", pairAddresses.length)
+    // getReservesByPairs returns List<uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast> from smart contract
     const reserves: Array<Array<BigNumber>> = (await uniswapQuery.functions.getReservesByPairs(pairAddresses))[0];
-    for (let i = 0; i < allMarketPairs.length; i++) {
+    for (let i = 0; i < allMarketPairs.length; i++) 
+    {
       const marketPair = allMarketPairs[i];
       const reserve = reserves[i]
+      // set reserves/tokenbalances for particular pool
       marketPair.setReservesViaOrderedBalances([reserve[0], reserve[1]])
     }
   }
@@ -135,6 +164,7 @@ export class UniswappyV2EthPair extends EthMarket {
     }
   }
 
+  // retrieve tokenBalance from address
   getTokensIn(tokenIn: string, tokenOut: string, amountOut: BigNumber): BigNumber {
     const reserveIn = this._tokenBalances[tokenIn]
     const reserveOut = this._tokenBalances[tokenOut]
